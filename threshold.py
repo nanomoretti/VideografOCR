@@ -78,9 +78,19 @@ class MainWindow(object):
         self.thr = None
         self.max_val = 127
 
-        self.crop = None
+        self._crop = None
         self.mouse_handler = MouseCropCallback()
 
+    @property
+    def crop(self):
+        """Return coordinates of crop, making some checks"""
+        result = None
+        if self._crop:
+            ul = self.mouse_handler.upper_left
+            br = self.mouse_handler.bottom_right
+            if ul[0] != br[0] and ul[1] != br[1]:
+                result =  list(ul) + list(br)
+        return result
 
     def thr_changed(self, thr, *args):
         """Function executed upon threshold type slider is changed"""
@@ -97,7 +107,7 @@ class MainWindow(object):
         elif key in [ord('c'), ord('C')]:
             self.img_index = (self.img_index + 1) % len(self.images)
         elif key == 27: # <ESC>
-            self.crop = None
+            self._crop = None
         elif key in [ord('t'), ord('T')]:
             self.exec_tesseract()
         elif key in [ord('h'), ord('H')]:
@@ -128,6 +138,8 @@ class MainWindow(object):
                 print '---------------------------------'
             else:
                 print 'problemas al ejecutar "{}"'.format(cmd)
+        else:
+            print 'no hay rectángulo seleccionado...'
 
 
     def loop(self):
@@ -167,7 +179,7 @@ class MainWindow(object):
                                                       thr_type)
             # if drawing rectangle, update crop coordinates
             if self.mouse_handler.drawing:
-                self.crop = self.mouse_handler.crop_rect
+                self._crop = self.mouse_handler.crop_rect
 
             # draw rectangle box
             if self.crop:
