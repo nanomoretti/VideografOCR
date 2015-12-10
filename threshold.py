@@ -7,6 +7,9 @@ c++/Threshold.cpp
 
 import os
 import cv2
+import commands
+
+from crops import crop_image
 
 class MouseCropCallback(object):
     """A callback to handle mouse interactions and crop image"""
@@ -51,6 +54,7 @@ class MouseCropCallback(object):
         """bottom right crop corner"""
         return tuple(max(self.crop_rect[:2], self.crop_rect[2:]))
 
+
 class MainWindow(object):
     """The main window of the application"""
 
@@ -68,12 +72,13 @@ class MainWindow(object):
         self.window_name = os.path.basename(__file__)
 
         self.images = ['c++/1.jpeg', 'c++/2.jpeg', 'c++/3.jpeg', 'c++/4.jpeg']
+        self.current_image = None
         self.img_index = 0
 
         self.thr = None
         self.max_val = 127
 
-        self.cropping = False
+        self.crop = None
         self.mouse_handler = MouseCropCallback()
 
 
@@ -92,7 +97,37 @@ class MainWindow(object):
         elif key in [ord('c'), ord('C')]:
             self.img_index = (self.img_index + 1) % len(self.images)
         elif key == 27: # <ESC>
-            self.cropping = False
+            self.crop = None
+        elif key in [ord('t'), ord('T')]:
+            self.exec_tesseract()
+        elif key in [ord('h'), ord('H')]:
+            self.print_help()
+        else:
+            print 'Presione "h" para ver una lista de comandos'
+
+    def exec_tesseract(self):
+        """Call tesseract and show results"""
+        if self.crop:
+            # re-process image, just to get rid of crop rectangle...
+            raw_image = self.images[self.img_index].copy()
+            if self.thr:
+                thr_type = self.THR_TYPES[self.thr][1]
+                _, raw_image = cv2.threshold(raw_image,
+                                             self.max_val,
+                                             255,
+                                             thr_type)
+            roi = crop_image(raw_image, self.crop)
+            cv2.imshow('ROI', roi)
+            img_path = '/tmp/threshold_py.jpg'
+            cv2.imwrite(img_path, roi)
+            cmd = 'tesseract {} stdout -l spa'.format(img_path)
+            status, output = commands.getstatusoutput(cmd)
+            if status == 0:
+                print '---------------------------------'
+                print output
+                print '---------------------------------'
+            else:
+                print 'problemas al ejecutar "{}"'.format(cmd)
 
 
     def loop(self):
@@ -117,21 +152,33 @@ class MainWindow(object):
                            self.window_name,
                            0, 255,
                            self.max_val_changed)
+
+        last_crop = None
+
         while True:
-            current_image = self.images[self.img_index].copy()
+            self.current_image = self.images[self.img_index].copy()
+
+            # apply thresholding
             if self.thr > 0:
                 thr_type = self.THR_TYPES[self.thr][1]
-                _, current_image = cv2.threshold(current_image,
-                                                 self.max_val,
-                                                 255,
-                                                 thr_type)
-            if self.mouse_handler.drawing or self.cropping:
-                self.cropping = True
-                cv2.rectangle(current_image,
+                _, self.current_image = cv2.threshold(self.current_image,
+                                                      self.max_val,
+                                                      255,
+                                                      thr_type)
+            # if drawing rectangle, update crop coordinates
+            if self.mouse_handler.drawing:
+                self.crop = self.mouse_handler.crop_rect
+
+            # draw rectangle box
+            if self.crop:
+                self.current_image = cv2.cvtColor(self.current_image,
+                                                  cv2.COLOR_GRAY2BGR)
+                cv2.rectangle(self.current_image,
                               self.mouse_handler.upper_left,
                               self.mouse_handler.bottom_right,
                               (0, 255, 0), 1)
-            cv2.imshow(self.window_name, current_image)
+
+            cv2.imshow(self.window_name, self.current_image)
             key = cv2.waitKey(self._LOOPTIME) & 0xFF
             if key != 255:
                 self.handle_key(key)
@@ -141,6 +188,16 @@ class MainWindow(object):
         """Clean-up and end loop"""
         print 'Chau!'
         exit(0)
+
+    @staticmethod
+    def print_help():
+        """Show list of usefull commands"""
+        print ('c:     Continuar, pasar a la siguiente imagen\n'
+               't:     Tesseract, ejecutar tesseract con la región de interés\n'
+               '<ESC>: Borrar rectángulo\n'
+               'q:     Quit, salir\n')
+
+
 
 
 if __name__ == '__main__':
