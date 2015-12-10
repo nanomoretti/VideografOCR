@@ -35,8 +35,9 @@ Cuando se incorporan nuevas librerías, actualizar los requerimientos con `pip
 freeze > requirements.txt`
 
 #### python set-up
-Asumiendo que el proyecto está clonado en `/home/user/videografocr`
-Agregar al correspondiente archivo de configuración de shell (`.bashrc`, `.zshrc`, etc.)
+Asumiendo que el proyecto está clonado en `/home/user/videografocr`,
+agregar al correspondiente archivo de configuración de shell (`.bashrc`, `.zshrc`, etc.)
+
 `export PYTHONPATH=PYTHONPATH:/home/user/`
 
 #### tesseract
